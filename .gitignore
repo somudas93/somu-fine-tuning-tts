@@ -4,7 +4,8 @@ data/manifests/
 data/prepared/
 outputs/
 checkpoints/
-models/
+models/*
+!models/README.md
 logs/
 *.wav
 *.npy
