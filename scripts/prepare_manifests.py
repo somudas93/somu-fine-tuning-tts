@@ -47,7 +47,7 @@ def main() -> None:
         rows.append({
             "id": sample_id,
             "text": row["text"].strip(),
-            "audio": audio_path.relative_to(manifest.parent).as_posix(),
+            "audio": __import__("os").path.relpath(audio_path, output_dir).replace("\\", "/"),
         })
 
     if len(rows) < 5:
