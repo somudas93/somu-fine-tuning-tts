@@ -9,6 +9,7 @@ Build a reproducible workflow to record the repository owner's own voice, prepar
 - Perform basic audio checks and build deterministic train/evaluation raw JSONL manifests.
 - Follow the upstream Audio8 preparation and SFT implementation rather than reimplementing its codec or trainer.
 - Keep recordings, prepared codec arrays, checkpoints, and exports private and out of Git by default.
+- Download the official base checkpoint with `scripts/download_base_model.py` into `models/base/audio8-realistic-air/`; model binaries are excluded from Git by default.
 
 ## Upstream contract
 The upstream guide defines raw manifest rows with required `id`, `text`, and `audio` fields. `reference_audio` and `reference_text` are optional and must be supplied together. The upstream `audio8_tts_prepare.py` converts raw WAV audio to codec indices; `audio8_tts_sft.py` consumes the prepared manifest. Verify the upstream guide and script versions before changing this interface.
@@ -33,6 +34,12 @@ Primary upstream references:
 - Inspect and listen to all clips before codec preparation.
 - Add prompt diversity relevant to the target use: financial terms, numbers, percentages, dates, currency, questions, transitions, and sentence-final pauses.
 - Do not invent sample-rate requirements. Check the selected checkpoint's codec config; the recorder defaults to the upstream 44.1 kHz codec rate for the 0.6B family.
+
+## Hardware notes
+- Apple Silicon M-series Macs use PyTorch MPS, not CUDA. The official Audio8 SFT launcher uses a DeepSpeed/distributed CUDA-oriented path; do not claim MPS fine-tuning support without a verified end-to-end test.
+- Use the M-series Mac for recording, data preparation, and compatibility experiments. If SFT is unsupported or unstable, use a CUDA GPU for training.
+- Ask for the exact unified-memory capacity before estimating whether local inference or codec preparation will fit comfortably.
+- The upstream Realistic Air snapshot is about 2.6 GB. Download it locally with `scripts/download_base_model.py`; do not commit the multi-gigabyte weights to ordinary Git history. Git LFS or a model registry requires an explicit storage decision and quota review.
 
 ## Engineering rules
 - Python 3.10+.
