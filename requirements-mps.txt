@@ -1,3 +1,4 @@
 -r requirements.txt
+-r requirements-recording.txt
 accelerate>=1.10
 tensorboard>=2.16
