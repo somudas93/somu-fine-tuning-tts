@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-AUDIO8_REPO="\${AUDIO8_REPO:-$ROOT/../Audio8_TTS}"
-MODEL="\${MODEL:-$ROOT/models/base/audio8-realistic-air}"
+AUDIO8_REPO="${AUDIO8_REPO:-$ROOT/../Audio8_TTS}"
+MODEL="${MODEL:-$ROOT/models/base/audio8-realistic-air}"
 if [[ ! -d "$AUDIO8_REPO" ]]; then
   echo "Audio8 source checkout not found: $AUDIO8_REPO" >&2
   exit 2
