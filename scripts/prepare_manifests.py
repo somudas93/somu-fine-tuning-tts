@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 from pathlib import Path
 
@@ -25,6 +26,7 @@ def main() -> None:
     manifest = args.manifest.resolve()
     rows = []
     seen = set()
+    output_dir = manifest.parent.parent / "manifests"
     for line_no, raw in enumerate(manifest.read_text(encoding="utf-8").splitlines(), 1):
         if not raw.strip():
             continue
@@ -47,7 +49,7 @@ def main() -> None:
         rows.append({
             "id": sample_id,
             "text": row["text"].strip(),
-            "audio": __import__("os").path.relpath(audio_path, output_dir).replace("\\", "/"),
+            "audio": os.path.relpath(audio_path, output_dir).replace(os.sep, "/"),
         })
 
     if len(rows) < 5:
@@ -56,7 +58,6 @@ def main() -> None:
     eval_count = max(1, round(len(rows) * args.eval_ratio))
     eval_rows, train_rows = rows[:eval_count], rows[eval_count:]
 
-    output_dir = manifest.parent.parent / "manifests"
     output_dir.mkdir(parents=True, exist_ok=True)
     for name, subset in (("train.jsonl", train_rows), ("eval.jsonl", eval_rows)):
         path = output_dir / name
