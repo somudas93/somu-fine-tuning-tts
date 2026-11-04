@@ -50,7 +50,21 @@ This checks that files exist, are mono, have plausible durations, and have non-e
 
 Aim for at least 30–60 minutes of clean speech for an initial experiment, then expand if results need improvement. This is a practical starting target, not a guarantee of quality. Keep validation sentences out of the training split.
 
-## 4. Audio8 codec preparation and SFT
+## 4. Download the base model artifacts
+
+Install the Hugging Face downloader (included in `requirements-recording.txt`) and run:
+
+```bash
+python scripts/download_base_model.py
+```
+
+This downloads the official `Edge0/Audio8-TTS-Realistic-Air` snapshot (about 2.6 GB) into `models/base/audio8-realistic-air/`. It includes the main weights, codec checkpoint, tokenizer, processor, configuration, and model code. The downloaded binaries stay in your local repository working directory but are excluded from Git by default. The upstream model card lists Apache-2.0; retain its LICENSE and NOTICE if redistributing. [Model card and file listing](https://huggingface.co/Edge0/Audio8-TTS-Realistic-Air).
+
+## 5. Apple Silicon: recording, inference, and fine-tuning
+
+Your M5 Pro is suitable for the recording workflow. Apple Silicon can also run some PyTorch workloads through MPS, but the official Audio8 SFT launcher currently relies on a CUDA/DeepSpeed-oriented distributed training stack. Do not assume that launcher will train on MPS. We should first check your Mac's unified memory and run a small model/codec loading test. If MPS training is unsupported or unstable, keep the Mac for recording and data preparation and use a CUDA GPU for SFT.
+
+## 6. Audio8 codec preparation and SFT
 
 Clone the upstream repository separately:
 
@@ -79,7 +93,7 @@ bash audio8_tts_sft.sh
 
 Use the exact upstream SFT guide for GPU requirements, batch sizing, resume settings, and export options: [Audio8 training guide](https://github.com/Edge0-AI/Audio8_TTS/blob/master/guides/training.md).
 
-The 0.6B Realistic Air model requires a CUDA-capable GPU for practical training. Do not assume a typical laptop can train it locally; the laptop can record the voice and prepare the manifests, while training may need a rented or hosted GPU.
+The official 0.6B SFT pipeline is documented for CUDA-capable GPUs. Your M5 Pro may be able to load/run portions through PyTorch MPS, depending on unified memory and operator support, but the upstream DeepSpeed-based SFT launcher is not an Apple Silicon training recipe. Verify compatibility before planning local fine-tuning.
 
 ## Privacy and repository hygiene
 
