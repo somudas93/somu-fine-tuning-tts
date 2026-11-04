@@ -42,6 +42,10 @@ export EVAL_STEPS="${EVAL_STEPS:-100}"
 export NUM_TRAIN_EPOCHS="${NUM_TRAIN_EPOCHS:-1}"
 export LEARNING_RATE="${LEARNING_RATE:-1e-5}"
 
-python "$ROOT/scripts/check_apple_silicon.py"
+if [[ "$BF16" == "true" ]]; then
+  python "$ROOT/scripts/check_apple_silicon.py" --require-bf16
+else
+  python "$ROOT/scripts/check_apple_silicon.py"
+fi
 cd "$AUDIO8_REPO"
 bash ./audio8_tts_sft.sh
