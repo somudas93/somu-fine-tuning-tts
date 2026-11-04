@@ -62,38 +62,66 @@ This downloads the official `Edge0/Audio8-TTS-Realistic-Air` snapshot (about 2.6
 
 ## 5. Apple Silicon: recording, inference, and fine-tuning
 
-Your M5 Pro is suitable for the recording workflow. Apple Silicon can also run some PyTorch workloads through MPS, but the official Audio8 SFT launcher currently relies on a CUDA/DeepSpeed-oriented distributed training stack. Do not assume that launcher will train on MPS. We should first check your Mac's unified memory and run a small model/codec loading test. If MPS training is unsupported or unstable, keep the Mac for recording and data preparation and use a CUDA GPU for SFT.
+Your machine has an Apple M5 Pro with 48 GB unified memory. PyTorch supports GPU execution through Apple's MPS backend. Recent DeepSpeed documentation also describes single-device MPS training, including ZeRO stages 0–3, but its published hardware verification currently names an M5 Max rather than an M5 Pro. So this workflow is a **carefully configured local training attempt**, not a guarantee that every Audio8 operator and dependency will work on your exact Mac. Run the included smoke test before starting a training job. [PyTorch MPS](https://docs.pytorch.org/docs/stable/notes/mps.html) · [DeepSpeed MPS setup and limitations](https://www.deepspeed.ai/tutorials/accelerator-setup-guide/).
 
 ## 6. Audio8 codec preparation and SFT
 
-Clone the upstream repository separately:
+Create a separate upstream checkout beside this repository:
 
 ```bash
+cd ..
 git clone https://github.com/Edge0-AI/Audio8_TTS.git
-cd Audio8_TTS
-pip install -r requirements-train.txt
+cd somu-fine-tuning-tts
 ```
 
-Copy or point the raw manifests and WAV files into the Audio8 workspace while preserving relative paths. Then, from the Audio8_TTS repository root:
+Create an Apple-Silicon environment (Python 3.10+; use a fresh environment for this stack):
 
 ```bash
-MODEL=Edge0/Audio8-TTS-Realistic-Air
-python audio8_tts_prepare.py --model "$MODEL" \
-  --input-jsonl /path/to/data/manifests/train.jsonl \
-  --output-jsonl /path/to/prepared_data/train.jsonl
-
-python audio8_tts_prepare.py --model "$MODEL" \
-  --input-jsonl /path/to/data/manifests/eval.jsonl \
-  --output-jsonl /path/to/prepared_data/eval.jsonl
-
-MODEL="$MODEL" TRAIN_JSONL=/path/to/prepared_data/train.jsonl \
-EVAL_JSONL=/path/to/prepared_data/eval.jsonl \
-bash audio8_tts_sft.sh
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements-mps.txt
 ```
 
-Use the exact upstream SFT guide for GPU requirements, batch sizing, resume settings, and export options: [Audio8 training guide](https://github.com/Edge0-AI/Audio8_TTS/blob/master/guides/training.md).
+Install DeepSpeed using its documented MPS build path (not the ordinary training requirements file):
 
-The official 0.6B SFT pipeline is documented for CUDA-capable GPUs. Your M5 Pro may be able to load/run portions through PyTorch MPS, depending on unified memory and operator support, but the upstream DeepSpeed-based SFT launcher is not an Apple Silicon training recipe. Verify compatibility before planning local fine-tuning.
+```bash
+DS_ACCELERATOR=mps pip install --no-build-isolation deepspeed
+```
+
+Check the actual machine before processing data:
+
+```bash
+python scripts/check_apple_silicon.py
+```
+
+If the MPS and DeepSpeed checks pass, download the base model and record/prepare your dataset:
+
+```bash
+python scripts/download_base_model.py
+python scripts/record_voice.py
+python scripts/prepare_manifests.py
+bash scripts/prepare_audio8_mps.sh
+```
+
+The codec-preparation wrapper explicitly selects `--device mps --dtype float32` and uses batch size 1. The upstream preparation script's automatic device selection defaults to CUDA or CPU, so do not omit the explicit MPS selection on this Mac.
+
+Start a conservative single-device SFT run:
+
+```bash
+bash scripts/run_mps_sft.sh
+```
+
+Initial settings for 48 GB unified memory:
+- one MPS device, microbatch size 1, gradient accumulation 8
+- BF16 enabled only after the included smoke test passes
+- no gradient checkpointing for the 0.6B Realistic Air model (upstream marks it unsupported)
+- one data-loader worker; MPS fallback enabled for unsupported operators
+- checkpoint and exported model saved under this repository's ignored `checkpoints/` and `models/finetuned/` directories
+
+If BF16 smoke testing fails, retry with `BF16=false bash scripts/run_mps_sft.sh`. If DeepSpeed does not detect MPS, the model fails to load, or the first training step hits an unsupported operator/OOM, stop rather than repeatedly retrying; capture the full error and use a CUDA GPU for SFT if needed. The smoke test verifies framework operations and accelerator detection, not end-to-end model training.
+
+For codec preparation or inference only, MPS may work even if DeepSpeed training does not. Use the wrappers and keep batch size small. See the upstream [Audio8 SFT guide](https://github.com/Edge0-AI/Audio8_TTS/blob/master/guides/training.md) and [DeepSpeed Apple Silicon instructions](https://www.deepspeed.ai/tutorials/accelerator-setup-guide/).
 
 ## Privacy and repository hygiene
 
