@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Check Apple Silicon MPS and DeepSpeed readiness for Audio8 SFT."""
 from __future__ import annotations
+import argparse
 import platform
 import sys
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--require-bf16', action='store_true', help='Fail if BF16 MPS forward/backward is unavailable')
+    args = parser.parse_args()
+    bf16_ok = False
     print(f"Platform: {platform.platform()}")
     print(f"Python: {sys.version.split()[0]}")
     try:
@@ -29,9 +34,12 @@ def main() -> int:
             (xb @ xb).float().mean().backward()
             torch.mps.synchronize()
             print("PASS: BF16 MPS forward/backward")
+            bf16_ok = True
         except Exception as exc:
             print(f"WARN: BF16 test failed: {type(exc).__name__}: {exc}")
             print("Use BF16=false for the first SFT attempt.")
+            if args.require_bf16:
+                return 6
     except Exception as exc:
         print(f"FAIL: MPS forward/backward failed: {type(exc).__name__}: {exc}")
         return 3
