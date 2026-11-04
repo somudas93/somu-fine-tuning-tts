@@ -6,6 +6,8 @@ outputs/
 checkpoints/
 models/*
 !models/README.md
+!models/base/
+!models/base/**
 logs/
 *.wav
 *.npy
