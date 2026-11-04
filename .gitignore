@@ -1,0 +1,20 @@
+# Personal voice data and generated artifacts
+data/raw/
+data/manifests/
+data/prepared/
+outputs/
+checkpoints/
+models/
+logs/
+*.wav
+*.npy
+*.pt
+*.pth
+*.safetensors
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
