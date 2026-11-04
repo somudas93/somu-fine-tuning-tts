@@ -36,9 +36,12 @@ Primary upstream references:
 - Do not invent sample-rate requirements. Check the selected checkpoint's codec config; the recorder defaults to the upstream 44.1 kHz codec rate for the 0.6B family.
 
 ## Hardware notes
-- Apple Silicon M-series Macs use PyTorch MPS, not CUDA. The official Audio8 SFT launcher uses a DeepSpeed/distributed CUDA-oriented path; do not claim MPS fine-tuning support without a verified end-to-end test.
-- Use the M-series Mac for recording, data preparation, and compatibility experiments. If SFT is unsupported or unstable, use a CUDA GPU for training.
-- Ask for the exact unified-memory capacity before estimating whether local inference or codec preparation will fit comfortably.
+- The target machine is an Apple M5 Pro with 48 GB unified memory. Use PyTorch MPS for local model and codec experiments.
+- Current DeepSpeed documentation describes single-device Apple MPS training with ZeRO stages 0–3; its published verification names M5 Max, not this exact M5 Pro. Treat local Audio8 SFT as a compatibility-tested attempt, not a guarantee.
+- Run `scripts/check_apple_silicon.py` before model preparation/training. It tests MPS FP32, BF16, and DeepSpeed accelerator detection; it does not prove end-to-end Audio8 training.
+- `scripts/prepare_audio8_mps.sh` calls upstream codec preparation with explicit `--device mps --dtype float32 --batch-size 1`; upstream auto-selection otherwise chooses CUDA or CPU.
+- `scripts/run_mps_sft.sh` uses one MPS process, microbatch 1, gradient accumulation 8, BF16 by default, no gradient checkpointing for 0.6B, and enables MPS fallback. Set `BF16=false` if the BF16 smoke test fails.
+- Install DeepSpeed on macOS using `DS_ACCELERATOR=mps pip install --no-build-isolation deepspeed`. If DeepSpeed detection or the first real training step fails, use a CUDA GPU rather than claiming successful MPS training.
 - The upstream Realistic Air snapshot is about 2.6 GB. Download it locally with `scripts/download_base_model.py`; do not commit the multi-gigabyte weights to ordinary Git history. Git LFS or a model registry requires an explicit storage decision and quota review.
 
 ## Engineering rules
@@ -52,6 +55,6 @@ Primary upstream references:
 1. Expand the recording prompt set and complete a first clean recording session.
 2. Listen to the dataset and correct transcript mismatches.
 3. Generate train/eval manifests.
-4. Run upstream codec preparation on a CUDA-capable machine.
-5. Run a small SFT experiment, evaluate held-out sentences, and compare generated speech with the original voice.
+4. Run upstream codec preparation on MPS using the supplied wrapper; fall back to CPU/CUDA if unsupported.
+5. Run a small MPS SFT experiment using the supplied launcher; if it fails, move SFT to a CUDA GPU. Evaluate held-out sentences and compare generated speech with the original voice.
 6. Store artifacts privately or with Git LFS if explicitly requested.
